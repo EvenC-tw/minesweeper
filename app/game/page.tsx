@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Page() {
   type Point = {
@@ -10,15 +10,18 @@ export default function Page() {
     count: number | null;
   };
   enum Difficulty {
-    EASY = 10,
-    MEDIUM = 15,
-    HARD = 30,
+    EASY = 8,
+    MEDIUM = 12,
+    HARD = 16,
   }
+
+  const [cursorType, setCursorType] = useState<'normal' | 'flag'>('normal');
   const [gameDifficulty, setGameDifficulty] = useState<Difficulty>(Difficulty.EASY);
-  const [gameState, setGameState] = useState<'waiting' | 'playing' | 'won' | 'lost'>('waiting');
+  const [gameState, setGameState] = useState<'waiting' | 'playing' | 'win' | 'lose'>('waiting');
   const [totalBombs, setTotalBombs] = useState<number>(0);
   const [remainFlags, setRemainFlags] = useState<number>(0);
   const [map, setMap] = useState<Point[][]>([]);
+
   const generateMap = () => {
     const rows = gameDifficulty;
     const columns = gameDifficulty;
@@ -53,13 +56,18 @@ export default function Page() {
     generateMap();
   };
 
+  const onChangeCursorType = (type?: 'normal' | 'flag') => {
+    if (type === undefined) type = cursorType === 'normal' ? 'flag' : 'normal';
+    setCursorType(type);
+  };
+
   const onReveal = (rowIndex: number, colIndex: number) => {
     const newMap = [...map];
     newMap[rowIndex][colIndex].hasRevealed = true;
     newMap[rowIndex][colIndex].count = showCounter(rowIndex, colIndex);
 
     if (newMap[rowIndex][colIndex].isBomb) {
-      setGameState('lost');
+      setGameState('lose');
       return;
     }
     if (showCounter(rowIndex, colIndex) === 0) {
@@ -81,6 +89,7 @@ export default function Page() {
     newMap[rowIndex][colIndex].hasFlag = !newMap[rowIndex][colIndex].hasFlag;
     setMap(newMap);
     setRemainFlags(remainFlags + (newMap[rowIndex][colIndex].hasFlag ? -1 : 1));
+    setCursorType('normal');
   };
 
   const showCounter = (rowIndex: number, colIndex: number) => {
@@ -112,14 +121,15 @@ export default function Page() {
   useEffect(() => {
     if (gameState === 'playing') {
       console.log(map.map((row) => row.map((cell) => cell.isBomb)));
-      const hasWon = map.every((row) => row.every((cell) => cell.hasRevealed || cell.isBomb));
-      if (hasWon) {
-        setGameState('won');
-        console.log('WON');
+      const hasWin = map.every((row) => row.every((cell) => cell.hasRevealed || cell.isBomb));
+      if (hasWin) {
+        setGameState('win');
+        console.log('WIN');
       }
-    } else if (gameState === 'lost') {
+    } else if (gameState === 'lose') {
     }
   }, [map, gameState]);
+
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
       {gameState === 'waiting' && (
@@ -130,8 +140,7 @@ export default function Page() {
             placeItems: 'center',
           }}
         >
-          {/* TODO need fix responsive displaying */}
-          {/* <div>
+          <div>
             <span
               style={{
                 display: 'block',
@@ -184,7 +193,7 @@ export default function Page() {
                 Hard
               </button>
             </div>
-          </div> */}
+          </div>
           <button
             style={{
               backgroundColor: 'black',
@@ -221,6 +230,18 @@ export default function Page() {
             <span>💣 :{totalBombs}</span>
             <span>🚩: {remainFlags}</span>
           </div>
+          <button
+            style={{
+              fontSize: '1.5rem',
+              // set transition when click
+            }}
+            className={`border-2 border-white rounded-lg p-1 ${
+              cursorType === 'flag' ? 'bg-yellow-300' : 'bg-black'
+            } active:transform active:scale-15 transition duration-150 ease-in-out`}
+            onClick={() => onChangeCursorType()}
+          >
+            🚩
+          </button>
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${map[0]?.length || 0}, 20px)`, gap: '2px' }}>
             {map.map((row, rowIndex) =>
               row.map((cell, colIndex) => (
@@ -237,12 +258,7 @@ export default function Page() {
                     backgroundColor: cell.hasRevealed ? 'lightgray' : 'gray',
                     cursor: 'pointer',
                   }}
-                  onClick={() => onReveal(rowIndex, colIndex)}
-                  // set flag on right click or long press on mobile
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    onSetFlag(rowIndex, colIndex);
-                  }}
+                  onClick={() => (cursorType === 'flag' ? onSetFlag(rowIndex, colIndex) : onReveal(rowIndex, colIndex))}
                 >
                   {renderPoint(rowIndex, colIndex)}
                 </div>
@@ -251,17 +267,17 @@ export default function Page() {
           </div>
         </div>
       )}
-      {gameState === 'won' && (
+      {gameState === 'win' && (
         <div style={{ display: 'grid', gap: '40px', placeItems: 'center' }}>
-          <div>Won</div>
+          <div>Win</div>
           <div>
             <button onClick={onReset}>Reset</button>
           </div>
         </div>
       )}
-      {gameState === 'lost' && (
+      {gameState === 'lose' && (
         <div style={{ display: 'grid', gap: '40px', placeItems: 'center' }}>
-          <div>Lost</div>
+          <div>Lose</div>
           <div>
             <button onClick={onReset}>Reset</button>
           </div>
