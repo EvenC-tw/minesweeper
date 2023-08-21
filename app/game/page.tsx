@@ -130,7 +130,8 @@ export default function Page() {
             placeItems: 'center',
           }}
         >
-          <div>
+          {/* TODO need fix responsive displaying */}
+          {/* <div>
             <span
               style={{
                 display: 'block',
@@ -183,7 +184,7 @@ export default function Page() {
                 Hard
               </button>
             </div>
-          </div>
+          </div> */}
           <button
             style={{
               backgroundColor: 'black',
