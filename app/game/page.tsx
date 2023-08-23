@@ -84,7 +84,7 @@ export default function Page() {
 
   const onStart = () => {
     playSound('onStart');
-    setGameState('GAME_STATES.PLAYING');
+    setGameState(GAME_STATES.PLAYING);
     generateMap();
   };
 
@@ -117,7 +117,7 @@ export default function Page() {
       playSound('onBomb');
       setTimeout(() => {
         playSound('onLose');
-        setGameState('GAME_STATES.LOSE');
+        setGameState(GAME_STATES.LOSE);
         return;
       }, 2000);
     }
@@ -159,15 +159,15 @@ export default function Page() {
 
   // check if all cells are revealed
   useEffect(() => {
-    if (gameState === 'GAME_STATES.PLAYING') {
+    if (gameState === GAME_STATES.PLAYING) {
       const hasWin = map.every((row) => row.every((cell) => cell.hasRevealed || cell.isBomb));
       if (hasWin) {
         playSound('onWin');
-        setGameState('GAME_STATES.WIN');
+        setGameState(GAME_STATES.WIN);
       }
-    } else if (gameState === 'GAME_STATES.LOSE') {
+    } else if (gameState === GAME_STATES.LOSE) {
     }
-  }, [map, gameState, playSound]);
+  }, [GAME_STATES.LOSE, GAME_STATES.PLAYING, GAME_STATES.WIN, gameState, map, playSound]);
 
   // play sound when game difficulty changed
   useEffect(() => {
@@ -315,9 +315,9 @@ export default function Page() {
   return (
     <div className="select-none flex justify-center items-center h-screen">
       {gameState === GAME_STATES.WAITING && renderWaitingState()}
-      {gameState === 'GAME_STATES.PLAYING' && renderPlayingState()}
-      {gameState === 'GAME_STATES.WIN' && renderWaitingState()}
-      {gameState === 'GAME_STATES.LOSE' && renderLoseState()}
+      {gameState === GAME_STATES.PLAYING && renderPlayingState()}
+      {gameState === GAME_STATES.WIN && renderWaitingState()}
+      {gameState === GAME_STATES.LOSE && renderLoseState()}
     </div>
   );
 }
