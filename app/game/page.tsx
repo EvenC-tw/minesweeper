@@ -1,26 +1,54 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { LongPressReactEvents, useLongPress } from 'use-long-press';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 export default function Page() {
-  type Point = {
+  type Cell = {
     isBomb: boolean;
     hasRevealed: boolean;
     hasFlag: boolean;
     count: number | null;
   };
+  type LongPressContext = {
+    context: {
+      rowIndex: number;
+      colIndex: number;
+    };
+  };
+  type AudioClips = {
+    [key: string]: HTMLAudioElement;
+  };
+
   enum Difficulty {
     EASY = 8,
     MEDIUM = 12,
     HARD = 16,
   }
 
-  const [cursorType, setCursorType] = useState<'normal' | 'flag'>('normal');
+  const GAME_STATES = {
+    WAITING: 'waiting',
+    PLAYING: 'playing',
+    WIN: 'win',
+    LOSE: 'lose',
+  };
+
+  const [audios, setAudios] = useState<AudioClips>({});
   const [gameDifficulty, setGameDifficulty] = useState<Difficulty>(Difficulty.EASY);
-  const [gameState, setGameState] = useState<'waiting' | 'playing' | 'win' | 'lose'>('waiting');
+  const prevGameDifficulty = useRef(Difficulty.EASY);
+  const [gameState, setGameState] = useState<string>(GAME_STATES.WAITING);
   const [totalBombs, setTotalBombs] = useState<number>(0);
   const [remainFlags, setRemainFlags] = useState<number>(0);
-  const [map, setMap] = useState<Point[][]>([]);
+  const [alertFlag, setAlertFlag] = useState<boolean>(false);
+  const [map, setMap] = useState<Cell[][]>([]);
+  const [currentEvent, setCurrentEvent] = useState<string | null>(null);
+
+  const playSound = useCallback(
+    (soundName: string) => {
+      audios[soundName]?.play();
+    },
+    [audios]
+  );
 
   const generateMap = () => {
     const rows = gameDifficulty;
@@ -48,64 +76,131 @@ export default function Page() {
   };
 
   const onReset = () => {
-    setGameState('waiting');
+    playSound('onReset');
+    setTimeout(() => {
+      setGameState(GAME_STATES.WAITING);
+    }, 1000);
   };
 
   const onStart = () => {
-    setGameState('playing');
+    playSound('onStart');
+    setGameState('GAME_STATES.PLAYING');
     generateMap();
   };
 
-  const onChangeCursorType = (type?: 'normal' | 'flag') => {
-    if (type === undefined) type = cursorType === 'normal' ? 'flag' : 'normal';
-    setCursorType(type);
-  };
+  const getAdjacentCells = (rowIndex: number, colIndex: number) => [
+    [rowIndex - 1, colIndex - 1],
+    [rowIndex - 1, colIndex],
+    [rowIndex - 1, colIndex + 1],
+
+    [rowIndex, colIndex - 1],
+    [rowIndex, colIndex + 1],
+
+    [rowIndex + 1, colIndex - 1],
+    [rowIndex + 1, colIndex],
+    [rowIndex + 1, colIndex + 1],
+  ];
+
+  const showCounter = (rowIndex: number, colIndex: number) =>
+    getAdjacentCells(rowIndex, colIndex).reduce((acc, [rowIndex, colIndex]) => {
+      if (map[rowIndex]?.[colIndex]?.isBomb) acc++;
+      return acc;
+    }, 0);
 
   const onReveal = (rowIndex: number, colIndex: number) => {
     const newMap = [...map];
-    newMap[rowIndex][colIndex].hasRevealed = true;
-    newMap[rowIndex][colIndex].count = showCounter(rowIndex, colIndex);
+    const cell = newMap[rowIndex][colIndex];
+    cell.hasRevealed = true;
+    cell.count = showCounter(rowIndex, colIndex);
 
-    if (newMap[rowIndex][colIndex].isBomb) {
-      setGameState('lose');
-      return;
+    if (cell.isBomb) {
+      playSound('onBomb');
+      setTimeout(() => {
+        playSound('onLose');
+        setGameState('GAME_STATES.LOSE');
+        return;
+      }, 2000);
     }
+
+    playSound('onReveal');
     if (showCounter(rowIndex, colIndex) === 0) {
-      if (map[rowIndex - 1]?.[colIndex - 1]?.hasRevealed === false) onReveal(rowIndex - 1, colIndex - 1);
-      if (map[rowIndex - 1]?.[colIndex]?.hasRevealed === false) onReveal(rowIndex - 1, colIndex);
-      if (map[rowIndex - 1]?.[colIndex + 1]?.hasRevealed === false) onReveal(rowIndex - 1, colIndex + 1);
-      if (map[rowIndex]?.[colIndex - 1]?.hasRevealed === false) onReveal(rowIndex, colIndex - 1);
-      if (map[rowIndex]?.[colIndex + 1]?.hasRevealed === false) onReveal(rowIndex, colIndex + 1);
-      if (map[rowIndex + 1]?.[colIndex - 1]?.hasRevealed === false) onReveal(rowIndex + 1, colIndex - 1);
-      if (map[rowIndex + 1]?.[colIndex]?.hasRevealed === false) onReveal(rowIndex + 1, colIndex);
-      if (map[rowIndex + 1]?.[colIndex + 1]?.hasRevealed === false) onReveal(rowIndex + 1, colIndex + 1);
+      getAdjacentCells(rowIndex, colIndex).forEach(([rowIndex, colIndex]) => {
+        if (map[rowIndex]?.[colIndex]?.hasRevealed === false) onReveal(rowIndex, colIndex);
+      });
     } else {
       setMap(newMap);
     }
   };
 
+  const bind = useLongPress((event: LongPressReactEvents<Element>, context: unknown) => {
+    setCurrentEvent(event.type);
+    // if (event.type === 'pointerdown') {
+    //   return;
+    // }
+    const customContext = (context as LongPressContext).context;
+    onSetFlag(customContext.rowIndex, customContext.colIndex);
+  });
+
   const onSetFlag = (rowIndex: number, colIndex: number) => {
+    if (remainFlags <= 0) {
+      setAlertFlag(true);
+      playSound('onNoFlags');
+      setTimeout(() => {
+        setAlertFlag(false);
+      }, 500);
+      return;
+    }
+    playSound('onFlag');
     const newMap = [...map];
     newMap[rowIndex][colIndex].hasFlag = !newMap[rowIndex][colIndex].hasFlag;
     setMap(newMap);
     setRemainFlags(remainFlags + (newMap[rowIndex][colIndex].hasFlag ? -1 : 1));
-    setCursorType('normal');
   };
 
-  const showCounter = (rowIndex: number, colIndex: number) => {
-    let counter = 0;
-    if (map[rowIndex - 1]?.[colIndex - 1]?.isBomb) counter++;
-    if (map[rowIndex - 1]?.[colIndex]?.isBomb) counter++;
-    if (map[rowIndex - 1]?.[colIndex + 1]?.isBomb) counter++;
-    if (map[rowIndex]?.[colIndex - 1]?.isBomb) counter++;
-    if (map[rowIndex]?.[colIndex + 1]?.isBomb) counter++;
-    if (map[rowIndex + 1]?.[colIndex - 1]?.isBomb) counter++;
-    if (map[rowIndex + 1]?.[colIndex]?.isBomb) counter++;
-    if (map[rowIndex + 1]?.[colIndex + 1]?.isBomb) counter++;
-    return counter;
-  };
+  // check if all cells are revealed
+  useEffect(() => {
+    if (gameState === 'GAME_STATES.PLAYING') {
+      const hasWin = map.every((row) => row.every((cell) => cell.hasRevealed || cell.isBomb));
+      if (hasWin) {
+        playSound('onWin');
+        setGameState('GAME_STATES.WIN');
+      }
+    } else if (gameState === 'GAME_STATES.LOSE') {
+    }
+  }, [map, gameState, playSound]);
 
-  const renderPoint = (rowIndex: number, colIndex: number) => {
+  // play sound when game difficulty changed
+  useEffect(() => {
+    if (prevGameDifficulty.current !== gameDifficulty) {
+      playSound('onSelect');
+      prevGameDifficulty.current = gameDifficulty;
+    }
+  }, [gameDifficulty, playSound]);
+
+  useEffect(() => {
+    const audioNames = [
+      'onStart',
+      'onReveal',
+      'onFlag',
+      'onBomb',
+      'onSelect',
+      'onWin',
+      'onLose',
+      'onReset',
+      'onNoFlags',
+    ];
+
+    const audios = audioNames.reduce((acc: AudioClips, audioName: string) => {
+      const audio = new Audio(`/sfx/${audioName}.mp3`);
+      audio.volume = 0.5;
+      acc[audioName] = audio;
+      return acc;
+    }, {} as AudioClips);
+
+    setAudios(audios);
+  }, []);
+
+  const renderCell = (rowIndex: number, colIndex: number) => {
     if (map[rowIndex][colIndex].hasRevealed) {
       if (map[rowIndex][colIndex].isBomb) {
         return '💣';
@@ -117,172 +212,112 @@ export default function Page() {
     }
   };
 
-  // check if all cells are revealed
-  useEffect(() => {
-    if (gameState === 'playing') {
-      console.log(map.map((row) => row.map((cell) => cell.isBomb)));
-      const hasWin = map.every((row) => row.every((cell) => cell.hasRevealed || cell.isBomb));
-      if (hasWin) {
-        setGameState('win');
-        console.log('WIN');
-      }
-    } else if (gameState === 'lose') {
-    }
-  }, [map, gameState]);
+  const renderResetButton = () => (
+    <button className="bg-black text-white border border-white w-24 rounded" onClick={onReset}>
+      Reset
+    </button>
+  );
+
+  const renderWaitingState = () => (
+    <div className="grid gap-10 place-items-center">
+      <div>
+        <span className="block mb-2.5">Choose difficulty</span>
+        <div className="grid grid-cols-3 gap-5">
+          <button
+            className={`border border-white w-24 rounded ${
+              gameDifficulty === Difficulty.EASY ? 'bg-white text-black' : 'bg-black text-white'
+            }`}
+            onClick={() => setGameDifficulty(Difficulty.EASY)}
+          >
+            Easy
+          </button>
+          <button
+            className={`border border-white w-24 rounded ${
+              gameDifficulty === Difficulty.MEDIUM ? 'bg-white text-black' : 'bg-black text-white'
+            }`}
+            onClick={() => setGameDifficulty(Difficulty.MEDIUM)}
+          >
+            Medium
+          </button>
+          <button
+            className={`border border-white w-24 rounded ${
+              gameDifficulty === Difficulty.HARD ? 'bg-white text-black' : 'bg-black text-white'
+            }`}
+            onClick={() => setGameDifficulty(Difficulty.HARD)}
+          >
+            Hard
+          </button>
+        </div>
+      </div>
+      <button className="bg-black text-white border border-white w-24 rounded" onClick={onStart}>
+        Start
+      </button>
+    </div>
+  );
+
+  const renderPlayingState = () => {
+    const gridTemplateColumns = `repeat(${map[0]?.length || 0}, 25px)`;
+    return (
+      <div className="grid gap-10 place-items-center">
+        <div>{renderResetButton()}</div>
+        <div className="grid grid-cols-2 gap-5">
+          <span>💣 :{totalBombs}</span>
+          <span>🚩: {remainFlags}</span>
+        </div>
+        <span className={`${alertFlag ? 'bg-red-500' : ''} transition-all duration-100`}>
+          tip: long press to set 🚩
+        </span>
+        <div
+          style={{
+            gridTemplateColumns,
+          }}
+          className="grid gap-0.5"
+        >
+          {map.map((row, rowIndex) =>
+            row.map((cell, colIndex) => (
+              <button
+                key={`${rowIndex}-${colIndex}`}
+                className={`flex justify-center items-center w-6 h-6 border border-black text-black ${
+                  cell.hasRevealed ? 'bg-gray-300' : 'bg-gray-500'
+                }`}
+                onClick={(e) => {
+                  setCurrentEvent(e.type);
+                  if (currentEvent !== 'pointerdown') {
+                    onReveal(rowIndex, colIndex);
+                  }
+                }}
+                onContextMenu={(e) => e.preventDefault()}
+                {...bind({ rowIndex, colIndex })}
+              >
+                {renderCell(rowIndex, colIndex)}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderWinState = () => (
+    <div className="grid gap-10 place-items-center">
+      <div>Win</div>
+      <div>{renderResetButton()}</div>
+    </div>
+  );
+
+  const renderLoseState = () => (
+    <div className="grid gap-10 place-items-center">
+      <div>Lose</div>
+      <div>{renderResetButton()}</div>
+    </div>
+  );
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      {gameState === 'waiting' && (
-        <div
-          style={{
-            display: 'grid',
-            gap: '40px',
-            placeItems: 'center',
-          }}
-        >
-          <div>
-            <span
-              style={{
-                display: 'block',
-                marginBottom: '10px',
-              }}
-            >
-              Choose difficulty
-            </span>
-            <div
-              style={{
-                display: 'grid',
-                gap: '20px',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-              }}
-            >
-              <button
-                style={{
-                  backgroundColor: gameDifficulty === Difficulty.EASY ? 'white' : 'black',
-                  color: gameDifficulty === Difficulty.EASY ? 'black' : 'white',
-                  border: '1px solid white',
-                  width: '96px',
-                  borderRadius: '5px',
-                }}
-                onClick={() => setGameDifficulty(Difficulty.EASY)}
-              >
-                Easy
-              </button>
-              <button
-                style={{
-                  backgroundColor: gameDifficulty === Difficulty.MEDIUM ? 'white' : 'black',
-                  color: gameDifficulty === Difficulty.MEDIUM ? 'black' : 'white',
-                  border: '1px solid white',
-                  width: '96px',
-                  borderRadius: '5px',
-                }}
-                onClick={() => setGameDifficulty(Difficulty.MEDIUM)}
-              >
-                Medium
-              </button>
-              <button
-                style={{
-                  backgroundColor: gameDifficulty === Difficulty.HARD ? 'white' : 'black',
-                  color: gameDifficulty === Difficulty.HARD ? 'black' : 'white',
-                  border: '1px solid white',
-                  width: '96px',
-                  borderRadius: '5px',
-                }}
-                onClick={() => setGameDifficulty(Difficulty.HARD)}
-              >
-                Hard
-              </button>
-            </div>
-          </div>
-          <button
-            style={{
-              backgroundColor: 'black',
-              color: 'white',
-              border: '1px solid white',
-              width: '96px',
-              borderRadius: '5px',
-            }}
-            onClick={onStart}
-          >
-            Start
-          </button>
-        </div>
-      )}
-      {gameState === 'playing' && (
-        <div
-          style={{
-            display: 'grid',
-            gap: '40px',
-            placeItems: 'center',
-          }}
-        >
-          <div>
-            <button onClick={onReset}>Reset</button>
-          </div>
-          {/* game status */}
-          <div
-            style={{
-              display: 'grid',
-              gap: '20px',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-            }}
-          >
-            <span>💣 :{totalBombs}</span>
-            <span>🚩: {remainFlags}</span>
-          </div>
-          <button
-            style={{
-              fontSize: '1.5rem',
-              // set transition when click
-            }}
-            className={`border-2 border-white rounded-lg p-1 ${
-              cursorType === 'flag' ? 'bg-yellow-300' : 'bg-black'
-            } active:transform active:scale-15 transition duration-150 ease-in-out`}
-            onClick={() => onChangeCursorType()}
-          >
-            🚩
-          </button>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${map[0]?.length || 0}, 20px)`, gap: '2px' }}>
-            {map.map((row, rowIndex) =>
-              row.map((cell, colIndex) => (
-                <div
-                  key={`${rowIndex}-${colIndex}`}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    width: '20px',
-                    height: '20px',
-                    border: '1px solid black',
-                    color: 'black',
-                    backgroundColor: cell.hasRevealed ? 'lightgray' : 'gray',
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => (cursorType === 'flag' ? onSetFlag(rowIndex, colIndex) : onReveal(rowIndex, colIndex))}
-                >
-                  {renderPoint(rowIndex, colIndex)}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-      {gameState === 'win' && (
-        <div style={{ display: 'grid', gap: '40px', placeItems: 'center' }}>
-          <div>Win</div>
-          <div>
-            <button onClick={onReset}>Reset</button>
-          </div>
-        </div>
-      )}
-      {gameState === 'lose' && (
-        <div style={{ display: 'grid', gap: '40px', placeItems: 'center' }}>
-          <div>Lose</div>
-          <div>
-            <button onClick={onReset}>Reset</button>
-          </div>
-        </div>
-      )}
+    <div className="select-none flex justify-center items-center h-screen">
+      {gameState === GAME_STATES.WAITING && renderWaitingState()}
+      {gameState === 'GAME_STATES.PLAYING' && renderPlayingState()}
+      {gameState === 'GAME_STATES.WIN' && renderWaitingState()}
+      {gameState === 'GAME_STATES.LOSE' && renderLoseState()}
     </div>
   );
 }
