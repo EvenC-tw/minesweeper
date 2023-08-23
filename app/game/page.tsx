@@ -34,6 +34,7 @@ export default function Page() {
   };
 
   const [audios, setAudios] = useState<AudioClips>({});
+  const [isSound, setIsSound] = useState<boolean>(false);
   const [gameDifficulty, setGameDifficulty] = useState<Difficulty>(Difficulty.EASY);
   const prevGameDifficulty = useRef(Difficulty.EASY);
   const [gameState, setGameState] = useState<string>(GAME_STATES.WAITING);
@@ -45,9 +46,9 @@ export default function Page() {
 
   const playSound = useCallback(
     (soundName: string) => {
-      audios[soundName]?.play();
+      isSound && audios[soundName]?.play();
     },
-    [audios]
+    [audios, isSound]
   );
 
   const generateMap = () => {
@@ -218,8 +219,17 @@ export default function Page() {
     </button>
   );
 
+  const renderSoundButton = () => (
+    <div className="relative w-full">
+      <button className="w-6 rounded absolute top-4 right-0" onClick={() => setIsSound(!isSound)}>
+        {isSound ? '🔊' : '🔇'}
+      </button>
+    </div>
+  );
+
   const renderWaitingState = () => (
     <div className="grid gap-10 place-items-center">
+      {renderSoundButton()}
       <div>
         <span className="block mb-2.5">Choose difficulty</span>
         <div className="grid grid-cols-3 gap-5">
@@ -259,6 +269,7 @@ export default function Page() {
     const gridTemplateColumns = `repeat(${map[0]?.length || 0}, 25px)`;
     return (
       <div className="grid gap-10 place-items-center">
+        {renderSoundButton()}
         <div>{renderResetButton()}</div>
         <div className="grid grid-cols-2 gap-5">
           <span>💣 :{totalBombs}</span>
@@ -300,6 +311,7 @@ export default function Page() {
 
   const renderWinState = () => (
     <div className="grid gap-10 place-items-center">
+      {renderSoundButton()}
       <div>Win</div>
       <div>{renderResetButton()}</div>
     </div>
@@ -307,6 +319,7 @@ export default function Page() {
 
   const renderLoseState = () => (
     <div className="grid gap-10 place-items-center">
+      {renderSoundButton()}
       <div>Lose</div>
       <div>{renderResetButton()}</div>
     </div>
@@ -316,7 +329,7 @@ export default function Page() {
     <div className="select-none flex justify-center items-center h-screen">
       {gameState === GAME_STATES.WAITING && renderWaitingState()}
       {gameState === GAME_STATES.PLAYING && renderPlayingState()}
-      {gameState === GAME_STATES.WIN && renderWaitingState()}
+      {gameState === GAME_STATES.WIN && renderWinState()}
       {gameState === GAME_STATES.LOSE && renderLoseState()}
     </div>
   );
