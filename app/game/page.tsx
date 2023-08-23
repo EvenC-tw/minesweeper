@@ -125,8 +125,8 @@ export default function Page() {
 
     playSound('onReveal');
     if (showCounter(rowIndex, colIndex) === 0) {
-      getAdjacentCells(rowIndex, colIndex).forEach(([rowIndex, colIndex]) => {
-        if (map[rowIndex]?.[colIndex]?.hasRevealed === false) onReveal(rowIndex, colIndex);
+      getAdjacentCells(rowIndex, colIndex).forEach(([adjRowIndex, adjColIndex]) => {
+        if (newMap[adjRowIndex]?.[adjColIndex]?.hasRevealed === false) onReveal(adjRowIndex, adjColIndex);
       });
     } else {
       setMap(newMap);
@@ -135,9 +135,6 @@ export default function Page() {
 
   const bind = useLongPress((event: LongPressReactEvents<Element>, context: unknown) => {
     setCurrentEvent(event.type);
-    // if (event.type === 'pointerdown') {
-    //   return;
-    // }
     const customContext = (context as LongPressContext).context;
     onSetFlag(customContext.rowIndex, customContext.colIndex);
   });
@@ -161,7 +158,9 @@ export default function Page() {
   // check if all cells are revealed
   useEffect(() => {
     if (gameState === GAME_STATES.PLAYING) {
-      const hasWin = map.every((row) => row.every((cell) => cell.hasRevealed || cell.isBomb));
+      const allNonBombsRevealed: boolean = map.every((col) => col.every((cell) => !cell.isBomb || cell.hasRevealed));
+      const allBombsFlagged: boolean = map.every((col) => col.every((cell) => !cell.isBomb || cell.hasFlag));
+      const hasWin: boolean = allNonBombsRevealed || allBombsFlagged;
       if (hasWin) {
         playSound('onWin');
         setGameState(GAME_STATES.WIN);
