@@ -1,34 +1,44 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
-## Getting Started
+# 專案介紹：踩地雷遊戲
 
-First, run the development server:
+這個專案是一個經典的踩地雷遊戲，使用者可以選擇遊戲難度，然後開始遊戲，目的是要在不點到炸彈的情況下，揭開所有的格子。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-```
+## 主要功能
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **遊戲難度設定**：玩家可以選擇「簡單」、「中等」和「困難」三種難度。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+2. **音效設定**：當某些事件發生時（例如：遊戲開始、揭開格子、放置旗子、點到炸彈等），將會播放相對應的音效。玩家也可以隨時開啟或關閉音效。
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+3. **長按設旗子**：玩家可以透過長按來在格子上放置或移除旗子，標示疑似是炸彈的位置。
 
-## Learn More
+4. **遊戲結果**：遊戲提供了勝利和失敗的結果畫面，如果玩家揭開所有非炸彈格子，則獲勝；反之，如果點到炸彈則失敗。
 
-To learn more about Next.js, take a look at the following resources:
+## 程式碼結構
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **類型定義**：此遊戲中有多個類型被定義，如格子的資訊、長按的事件分類、音效等。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+2. **遊戲狀態管理**：使用React的 `useState` 來管理遊戲的狀態，包括當前遊戲難度、遊戲狀態（等待、遊戲中、勝利、失敗）以及地圖資訊等。
 
-## Deploy on Vercel
+3. **音效功能**：根據不同的遊戲事件播放相對應的音效。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. **遊戲邏輯**：遊戲核心邏輯，如生成地圖、計算鄰近的炸彈數量、揭開格子和設置旗子等。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+5. **渲染**：根據當前的遊戲狀態，渲染不同的介面給玩家，如等待畫面、遊戲畫面、勝利或失敗的結果畫面。
+
+---
+
+## 未來發展可能性
+
+使用者介面(UI)優化：雖然現在的遊戲界面功能完整，但為了增強使用者體驗，可以考慮更新遊戲的視覺設計、增加動畫效果、或提供更多自訂的選項（如主題、背景等）。
+
+排行榜功能：增加一個排行榜功能，讓玩家可以看到自己和其他玩家的完成遊戲的時間排名，這會增加遊戲的競技性和重玩價值。
+
+適應性設計：為了讓遊戲在各種屏幕尺寸和解析度上都能夠有良好的表現，可以加強其適應性設計。
+
+多語言支援：為了吸引更多的國際玩家，可以考慮增加多語言支援，提供不同語言的遊戲介面。
+
+更多遊戲模式：除了基本的三種難度外，可以考慮增加一些特殊的遊戲模式，例如有時間限制的挑戰、或是特殊規則的遊戲等。
+
+音效和背景音樂：目前已有基本的音效，但可以進一步加入背景音樂，並提供音量調節或音效選擇的功能。
+
+雲端儲存：為了讓玩家在不同的設備上都能玩到自己的遊戲進度，可以考慮增加雲端儲存功能。
